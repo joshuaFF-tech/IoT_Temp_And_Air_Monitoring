@@ -1,0 +1,658 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Power & Cooling Monitor</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <style>
+    :root{
+      --bg:#050913;
+      --panel:#0d1626;
+      --line:rgba(255,255,255,.08);
+      --text:#e9f0fb;
+      --muted:#8fa1ba;
+      --cyan:#22d3ee;
+      --blue:#4ea1ff;
+      --green:#34d399;
+      --amber:#f5c451;
+      --red:#ff6b7a;
+      --shadow:0 16px 40px rgba(0,0,0,.35);
+    }
+    *{box-sizing:border-box}
+    body{
+      margin:0;
+      font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;
+      color:var(--text);
+      background:
+        radial-gradient(circle at 10% 10%, rgba(34,211,238,.18), transparent 30%),
+        radial-gradient(circle at 90% 0%, rgba(78,161,255,.20), transparent 28%),
+        radial-gradient(circle at 50% 100%, rgba(245,196,81,.10), transparent 28%),
+        linear-gradient(180deg, #09111e 0%, #050913 100%);
+      min-height:100vh;
+    }
+    .wrap{max-width:1280px;margin:0 auto;padding:18px}
+    .topbar{
+      display:flex;justify-content:space-between;align-items:center;gap:14px;
+      padding:18px 20px;border:1px solid var(--line);border-radius:24px;
+      background:linear-gradient(180deg, rgba(255,255,255,.05), rgba(255,255,255,.02));
+      box-shadow:var(--shadow);
+    }
+    .brand{display:flex;align-items:center;gap:14px}
+    .logo{
+      width:58px;height:58px;border-radius:18px;
+      display:grid;place-items:center;font-size:30px;
+      background:linear-gradient(145deg, rgba(34,211,238,.95), rgba(78,161,255,.55) 60%, rgba(245,196,81,.95));
+      box-shadow:0 0 0 1px rgba(255,255,255,.08), 0 12px 28px rgba(0,0,0,.35);
+    }
+    .title h1{margin:0;font-size:28px;line-height:1.1;letter-spacing:1px}
+    .title .sub{margin-top:4px;color:var(--muted);font-size:14px}
+    .clock{
+      font-size:18px;font-weight:800;color:#dce8ff;
+      padding:10px 14px;border-radius:14px;
+      background:rgba(255,255,255,.04);border:1px solid var(--line)
+    }
+    .statusRow{
+      display:grid;grid-template-columns:repeat(3,1fr);gap:12px;
+      margin:14px 0 18px;
+    }
+    .pill{
+      display:flex;align-items:center;justify-content:center;gap:10px;
+      padding:12px 14px;border-radius:999px;border:1px solid var(--line);
+      background:rgba(255,255,255,.03);font-weight:700;color:#dbe6f7;
+    }
+    .dot{width:10px;height:10px;border-radius:50%}
+    .dot.green{background:var(--green);box-shadow:0 0 12px var(--green)}
+    .dot.cyan{background:var(--cyan);box-shadow:0 0 12px var(--cyan)}
+    .dot.amber{background:var(--amber);box-shadow:0 0 12px var(--amber)}
+    .dot.red{background:var(--red);box-shadow:0 0 12px var(--red)}
+    .banner{
+      border:1px solid rgba(34,211,238,.22);
+      background:linear-gradient(180deg, rgba(34,211,238,.08), rgba(78,161,255,.03));
+      border-radius:24px;padding:18px;margin-bottom:18px;
+      box-shadow:var(--shadow);
+    }
+    .banner button{
+      margin-top:12px;
+      border:0;border-radius:14px;padding:13px 18px;cursor:pointer;
+      font-weight:800;color:#03131a;
+      background:linear-gradient(90deg, #22d3ee, #7dd3fc);
+    }
+    .grid{
+      display:grid;grid-template-columns:repeat(3,1fr);gap:14px;
+    }
+    .card{
+      min-height:170px;padding:18px;border-radius:24px;border:1px solid var(--line);
+      background:linear-gradient(180deg, rgba(255,255,255,.04), rgba(255,255,255,.02));
+      box-shadow:var(--shadow);
+    }
+    .card h3{
+      margin:0 0 8px;font-size:13px;letter-spacing:1.5px;text-transform:uppercase;
+      color:var(--muted)
+    }
+    .value{font-size:56px;font-weight:900;line-height:1}
+    .unit{margin-top:10px;color:#bfd0e8;font-size:16px}
+    .v-cyan{color:var(--cyan)}
+    .v-green{color:var(--green)}
+    .v-amber{color:var(--amber)}
+    .v-red{color:var(--red)}
+    .panel{
+      margin-top:14px;padding:18px;border-radius:24px;border:1px solid var(--line);
+      background:linear-gradient(180deg, rgba(255,255,255,.04), rgba(255,255,255,.02));
+      box-shadow:var(--shadow);
+    }
+    .controls{
+      display:grid;grid-template-columns:repeat(4,1fr);gap:12px;align-items:start;
+    }
+    .btn{
+      border:0;border-radius:14px;padding:14px 16px;font-weight:800;cursor:pointer;color:#fff;
+    }
+    .btn.start{background:linear-gradient(90deg,#16a34a,#34d399)}
+    .btn.stop{background:linear-gradient(90deg,#ef4444,#fb7185)}
+    .btn.gold{background:linear-gradient(90deg,#b45309,#f59e0b);color:#111}
+    .btn:disabled{opacity:.65;cursor:not-allowed}
+    select{
+      width:100%;padding:13px 14px;border-radius:14px;border:1px solid var(--line);
+      background:#08111d;color:#fff;font-weight:700;
+    }
+    .small{margin-top:8px;color:var(--muted);font-size:13px}
+    .chartBox{height:300px;margin-top:16px}
+    .chartTitle{
+      display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;
+      color:#dbe7f7;font-weight:800
+    }
+    .tag{
+      font-size:12px;padding:6px 10px;border-radius:999px;
+      border:1px solid var(--line);background:rgba(255,255,255,.03);color:#c8d8ee
+    }
+    .tableWrap{overflow:auto;max-height:420px;border-radius:18px}
+    table{
+      width:100%;border-collapse:collapse;background:rgba(0,0,0,.14);
+    }
+    th,td{
+      padding:10px 8px;border-bottom:1px solid rgba(255,255,255,.06);
+      text-align:center;font-size:13px;white-space:nowrap;
+    }
+    th{
+      position:sticky;top:0;background:#0d1626;color:var(--amber);z-index:1;
+    }
+    .status-buruk{color:var(--red);font-weight:800}
+    .status-sedang{color:var(--amber);font-weight:800}
+    .status-baik{color:var(--green);font-weight:800}
+    @media (max-width: 980px){
+      .statusRow,.grid,.controls{grid-template-columns:1fr}
+      .value{font-size:46px}
+      .topbar{flex-direction:column;align-items:flex-start}
+    }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="topbar">
+      <div class="brand">
+        <div class="logo">⚡❄️</div>
+        <div class="title">
+          <h1>POWER & COOLING MONITOR</h1>
+          <div class="sub">ESP32 + DHT22 + MQ-135 + Google Sheets</div>
+        </div>
+      </div>
+      <div class="clock" id="clock">--:--:--</div>
+    </div>
+
+    <div class="statusRow">
+      <div class="pill"><span class="dot green"></span><span id="logState">Merekam</span></div>
+      <div class="pill"><span class="dot amber"></span><span id="intervalState">5 detik</span></div>
+      <div class="pill"><span class="dot cyan"></span><span id="sheetState">Sheets OK</span></div>
+    </div>
+
+    <div class="banner">
+      <div>🔊 Aktifkan suara alarm browser untuk notifikasi kondisi buruk.</div>
+      <button id="btnSound">Aktifkan Suara</button>
+    </div>
+
+    <div class="grid">
+      <div class="card">
+        <h3>SUHU DHT22</h3>
+        <div class="value v-cyan" id="tempDht">--.-</div>
+        <div class="unit">°C</div>
+      </div>
+      <div class="card">
+        <h3>KELEMBAPAN</h3>
+        <div class="value v-green" id="hum">--</div>
+        <div class="unit">% RH</div>
+      </div>
+      <div class="card">
+        <h3>MQ-135 STATUS</h3>
+        <div class="value v-amber" id="airStatus">--</div>
+        <div class="unit" id="mqRaw">MQ raw: --</div>
+      </div>
+    </div>
+
+    <div class="card" style="margin-top:14px">
+      <h3>STATUS ALARM</h3>
+      <div class="value v-red" id="alarmState" style="font-size:40px">Normal</div>
+      <div class="unit" id="alarmTime">Update: --</div>
+    </div>
+
+    <div class="panel">
+      <h3 style="margin-top:0;color:#8fa1ba;letter-spacing:1.2px;text-transform:uppercase">KONTROL PENGUKURAN</h3>
+      <div class="controls">
+        <button class="btn start" id="btnStart">▶ START</button>
+        <button class="btn stop" id="btnStop">■ STOP</button>
+        <button class="btn gold" id="btnClearChart">Clear Grafik</button>
+        <div>
+          <select id="intervalSelect">
+            <option value="1000">Real-time</option>
+            <option value="60000" selected>1 menit</option>
+            <option value="300000">5 menit</option>
+            <option value="600000">10 menit</option>
+            <option value="1200000">20 menit</option>
+            <option value="1800000">30 menit</option>
+          </select>
+          <div class="small">Interval ini dikirim ke Apps Script dan dipakai ESP32.</div>
+        </div>
+      </div>
+
+      <div class="chartBox">
+        <div class="chartTitle">
+          <span>Grafik DHT22</span>
+          <span class="tag">Suhu & Kelembapan</span>
+        </div>
+        <canvas id="chartDht"></canvas>
+      </div>
+
+      <div class="chartBox" style="margin-top:22px">
+        <div class="chartTitle">
+          <span>Grafik MQ-135</span>
+          <span class="tag">Kualitas Udara</span>
+        </div>
+        <canvas id="chartMq"></canvas>
+      </div>
+    </div>
+
+    <div class="panel">
+      <h3 style="margin-top:0;color:#8fa1ba;letter-spacing:1.2px;text-transform:uppercase">DATA TERBARU (50 DATA TERAKHIR)</h3>
+      <div class="tableWrap">
+        <table>
+          <thead>
+            <tr>
+              <th>No</th>
+              <th>Tanggal</th>
+              <th>Jam</th>
+              <th>Suhu</th>
+              <th>Kelembapan</th>
+              <th>MQ-135</th>
+              <th>Status Udara</th>
+              <th>Alarm</th>
+              <th>Logging</th>
+              <th>Catatan</th>
+            </tr>
+          </thead>
+          <tbody id="tableBody"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // GANTI dengan URL deploy terbaru Apps Script kamu
+    const GAS_URL = "https://script.google.com/macros/s/AKfycbw89WyFMyPOopsnAMqQDlQ3886FIEJ2t1DwhomVKHPIXQ9SBNyq2cM0hrErhHzgudTTKQ/exec";
+    const TOKEN = "YOSIA_SYAHDAN_PROJECT_SISPENG123";
+
+    const MAX_ROWS = 50;
+    const DASHBOARD_REFRESH_MS = 2000;
+
+    let chartDht = null;
+    let chartMq = null;
+    let soundEnabled = false;
+    let lastAlarmSignature = "";
+    let lastLoggingState = false;
+    let refreshBusy = false;
+    let refreshTimer = null;
+    let currentIntervalMs = Number(document.getElementById('intervalSelect').value);
+
+    function tickClock(){
+      document.getElementById('clock').textContent = new Date().toLocaleTimeString('id-ID');
+    }
+    setInterval(tickClock, 1000);
+    tickClock();
+
+    function fmt(v, digits = 1){
+      const n = Number(v);
+      return Number.isFinite(n) ? n.toFixed(digits) : '--';
+    }
+
+    function formatTanggal(value){
+      if (!value) return '--';
+      const s = String(value).trim();
+      const m = s.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+      if (m) {
+        const months = ['Jan','Feb','Mar','Apr','Mei','Jun','Jul','Agu','Sep','Okt','Nov','Des'];
+        const dd = String(Number(m[3])).padStart(2, '0');
+        const mm = months[Number(m[2]) - 1] || m[2];
+        return `${dd} ${mm} ${m[1]}`;
+      }
+      return s;
+    }
+
+    function formatJam(value){
+      if (!value) return '--';
+      return String(value);
+    }
+
+    function statusClass(status){
+      const s = String(status || '').toUpperCase();
+      if (s === 'BURUK') return 'status-buruk';
+      if (s === 'SEDANG') return 'status-sedang';
+      return 'status-baik';
+    }
+
+    function buildChart(ctx, title, datasets){
+      return new Chart(ctx, {
+        type: 'line',
+        data: { labels: [], datasets },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          animation: false,
+          interaction: { mode: 'index', intersect: false },
+          scales: {
+            x: {
+              ticks: { color: '#c8d8ee' },
+              grid: { color: 'rgba(255,255,255,.05)' }
+            },
+            y: {
+              ticks: { color: '#c8d8ee' },
+              grid: { color: 'rgba(255,255,255,.05)' }
+            }
+          },
+          plugins: {
+            legend: { labels: { color: '#fff' } },
+            title: {
+              display: true,
+              text: title,
+              color: '#f5c451',
+              font: { size: 14, weight: 'bold' }
+            }
+          },
+          elements: {
+            point: { radius: 2, hoverRadius: 4 }
+          }
+        }
+      });
+    }
+
+    function initCharts(){
+      const dhtCanvas = document.getElementById('chartDht');
+      const mqCanvas = document.getElementById('chartMq');
+
+      if (!dhtCanvas || !mqCanvas) {
+        console.error('Canvas chartDht atau chartMq tidak ditemukan');
+        return;
+      }
+
+      chartDht = buildChart(dhtCanvas.getContext('2d'), 'Grafik DHT22', [
+        { label: 'Suhu (°C)', data: [], borderWidth: 2, tension: 0.3 },
+        { label: 'Kelembapan (%RH)', data: [], borderWidth: 2, tension: 0.3 }
+      ]);
+
+      chartMq = buildChart(mqCanvas.getContext('2d'), 'Grafik MQ-135', [
+        { label: 'MQ-135 Raw', data: [], borderWidth: 2, tension: 0.3 }
+      ]);
+    }
+
+    function jsonp(url, timeoutMs = 8000){
+      return new Promise((resolve, reject) => {
+        const s = document.createElement('script');
+        const cb = 'cb_' + Math.random().toString(36).slice(2);
+        let done = false;
+
+        const cleanup = () => {
+          if (done) return;
+          done = true;
+          delete window[cb];
+          if (s.parentNode) s.parentNode.removeChild(s);
+          clearTimeout(timer);
+        };
+
+        window[cb] = (data) => {
+          cleanup();
+          resolve(data);
+        };
+
+        const timer = setTimeout(() => {
+          cleanup();
+          reject(new Error('JSONP timeout'));
+        }, timeoutMs);
+
+        s.src = url + '&callback=' + cb + '&_=' + Date.now();
+        s.onerror = () => {
+          cleanup();
+          reject(new Error('JSONP error'));
+        };
+
+        document.body.appendChild(s);
+      });
+    }
+
+    async function refreshData(){
+      try {
+        const data = await jsonp(`${GAS_URL}?action=latest`);
+        updateDashboard(data);
+        document.getElementById('sheetState').textContent = 'Sheets OK';
+      } catch (e) {
+        document.getElementById('sheetState').textContent = 'Sheets error';
+        console.error(e);
+      }
+    }
+
+    async function refreshConfig(){
+      try {
+        const data = await jsonp(`${GAS_URL}?action=getstate`);
+        if (data && data.config) {
+          const cfg = data.config;
+          document.getElementById('logState').textContent = cfg.logging ? 'Merekam' : 'Berhenti';
+          document.getElementById('intervalSelect').value = String(cfg.intervalMs || 60000);
+          syncIntervalLabel();
+        }
+      } catch (e) {
+        console.error(e);
+      }
+    }
+
+    function renderTable(rows){
+      const tbody = document.getElementById('tableBody');
+      tbody.innerHTML = '';
+
+      rows.forEach((r, idx) => {
+        const tr = document.createElement('tr');
+        const alarmOn = String(r.alarm).toUpperCase() === 'ON';
+        const loggingOn = String(r.logging).toUpperCase() === 'ON';
+
+        const cells = [
+          r.no ?? idx + 1,
+          formatTanggal(r.tanggal),
+          formatJam(r.jam),
+          fmt(r.suhu_dht22),
+          fmt(r.kelembapan),
+          r.mq_raw ?? '',
+          r.status_udara ?? '',
+          alarmOn ? 'ON' : 'OFF',
+          loggingOn ? 'ON' : 'OFF',
+          r.catatan ?? ''
+        ];
+
+        cells.forEach((val, i) => {
+          const td = document.createElement('td');
+          td.textContent = val;
+
+          if (i === 6) td.className = statusClass(r.status_udara);
+          if (i === 7) {
+            td.style.fontWeight = '800';
+            td.style.color = alarmOn ? '#ff6b7a' : '#34d399';
+          }
+          if (i === 8) {
+            td.style.fontWeight = '800';
+            td.style.color = loggingOn ? '#34d399' : '#ff6b7a';
+          }
+
+          tr.appendChild(td);
+        });
+
+        tbody.appendChild(tr);
+      });
+    }
+
+    function updateCharts(rows){
+      const labels = [];
+      const temps = [];
+      const hums = [];
+      const mqs = [];
+
+      rows.forEach(r => {
+        labels.push(r.jam || r.tanggal || '');
+        temps.push(Number(r.suhu_dht22));
+        hums.push(Number(r.kelembapan));
+        mqs.push(Number(r.mq_raw));
+      });
+
+      if (chartDht) {
+        chartDht.data.labels = labels;
+        chartDht.data.datasets[0].data = temps;
+        chartDht.data.datasets[1].data = hums;
+        chartDht.update();
+      }
+
+      if (chartMq) {
+        chartMq.data.labels = labels;
+        chartMq.data.datasets[0].data = mqs;
+        chartMq.update();
+      }
+    }
+
+    function updateSummary(last){
+      if (!last) return;
+
+      document.getElementById('tempDht').textContent = fmt(last.suhu_dht22);
+      document.getElementById('hum').textContent = fmt(last.kelembapan, 0);
+      document.getElementById('airStatus').textContent = last.status_udara ?? '--';
+      document.getElementById('mqRaw').textContent = `MQ raw: ${last.mq_raw ?? '--'}`;
+
+      const alarmOn = String(last.alarm).toUpperCase() === 'ON';
+      const loggingOn = String(last.logging).toUpperCase() === 'ON';
+
+      document.getElementById('alarmState').textContent = alarmOn ? 'Alarm' : 'Normal';
+      document.getElementById('alarmTime').textContent = `Update: ${formatTanggal(last.tanggal)} ${formatJam(last.jam)}`;
+      document.getElementById('logState').textContent = loggingOn ? 'Merekam' : 'Berhenti';
+
+      lastLoggingState = loggingOn;
+
+      if (alarmOn) {
+        const sig = `${last.tanggal}|${last.jam}|${last.alarm}`;
+        if (sig !== lastAlarmSignature) {
+          playAlarm();
+          lastAlarmSignature = sig;
+        }
+      }
+    }
+
+    function updateDashboard(data){
+      if (!data || !Array.isArray(data.rows)) return;
+      const rows = data.rows.slice(-MAX_ROWS);
+      renderTable(rows);
+      updateCharts(rows);
+      updateSummary(rows[rows.length - 1]);
+    }
+
+    function playAlarm(){
+      if (!soundEnabled) return;
+
+      const AudioCtx = window.AudioContext || window.webkitAudioContext;
+      const ctx = new AudioCtx();
+
+      const beep = (t, freq, dur) => {
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.type = 'sine';
+        osc.frequency.value = freq;
+        gain.gain.value = 0.12;
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+        osc.start(t);
+        osc.stop(t + dur);
+      };
+
+      const now = ctx.currentTime;
+      beep(now, 880, 0.18);
+      beep(now + 0.25, 880, 0.18);
+      beep(now + 0.5, 660, 0.25);
+    }
+
+    async function sendState(params){
+      const qs = new URLSearchParams(params);
+      qs.set('token', TOKEN);
+      qs.set('_', Date.now());
+
+      const url = `${GAS_URL}?action=setstate&${qs.toString()}`;
+
+      try {
+        await fetch(url, {
+          method: 'GET',
+          mode: 'no-cors',
+          cache: 'no-store',
+          credentials: 'omit'
+        });
+        return true;
+      } catch (e) {
+        console.error(e);
+        const img = new Image();
+        img.src = url;
+        return true;
+      }
+    }
+
+    function syncIntervalLabel(){
+      const select = document.getElementById('intervalSelect');
+      document.getElementById('intervalState').textContent = select.selectedOptions[0].textContent;
+      currentIntervalMs = Number(select.value);
+    }
+
+    function clearCharts(){
+      if (chartDht) {
+        chartDht.data.labels = [];
+        chartDht.data.datasets.forEach(ds => ds.data = []);
+        chartDht.update();
+      }
+      if (chartMq) {
+        chartMq.data.labels = [];
+        chartMq.data.datasets.forEach(ds => ds.data = []);
+        chartMq.update();
+      }
+    }
+
+    function scheduleRefresh(){
+      clearTimeout(refreshTimer);
+      refreshTimer = setTimeout(loopRefresh, DASHBOARD_REFRESH_MS);
+    }
+
+    async function loopRefresh(){
+      if (refreshBusy) {
+        scheduleRefresh();
+        return;
+      }
+
+      refreshBusy = true;
+      try {
+        await refreshData();
+        await refreshConfig();
+      } finally {
+        refreshBusy = false;
+        scheduleRefresh();
+      }
+    }
+
+    document.getElementById('btnSound').addEventListener('click', () => {
+      soundEnabled = true;
+      document.getElementById('btnSound').textContent = 'Suara Aktif';
+      playAlarm();
+    });
+
+    document.getElementById('btnStart').addEventListener('click', async () => {
+      const ok = await sendState({ logging: 1, intervalMs: currentIntervalMs });
+      document.getElementById('logState').textContent = 'Merekam';
+      if (ok) {
+        await refreshConfig();
+        await refreshData();
+      }
+    });
+
+    document.getElementById('btnStop').addEventListener('click', async () => {
+      const ok = await sendState({ logging: 0 });
+      document.getElementById('logState').textContent = 'Berhenti';
+      if (ok) {
+        await refreshConfig();
+        await refreshData();
+      }
+    });
+
+    document.getElementById('intervalSelect').addEventListener('change', async () => {
+      syncIntervalLabel();
+      await sendState({ intervalMs: currentIntervalMs });
+      await refreshConfig();
+    });
+
+    document.getElementById('btnClearChart').addEventListener('click', () => {
+      clearCharts();
+      document.getElementById('tableBody').innerHTML = '';
+    });
+
+    window.addEventListener('DOMContentLoaded', () => {
+      initCharts();
+      syncIntervalLabel();
+      refreshData();
+      refreshConfig();
+      scheduleRefresh();
+    });
+  </script>
+</body>
+</html>
