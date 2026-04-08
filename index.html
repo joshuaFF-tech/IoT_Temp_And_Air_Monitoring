@@ -485,7 +485,7 @@
       const mqs = [];
 
       rows.forEach(r => {
-        labels.push(r.jam || r.tanggal || '');
+        labels.push(r.jam || r.tanggal || i);
         temps.push(Number(r.suhu_dht22));
         hums.push(Number(r.kelembapan));
         mqs.push(Number(r.mq_raw));
