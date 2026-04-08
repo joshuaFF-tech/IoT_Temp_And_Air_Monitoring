@@ -283,22 +283,37 @@
     }
 
     function formatTanggal(value){
-      if (!value) return '--';
-      const s = String(value).trim();
-      const m = s.match(/^(\d{4})-(\d{2})-(\d{2})$/);
-      if (m) {
-        const months = ['Jan','Feb','Mar','Apr','Mei','Jun','Jul','Agu','Sep','Okt','Nov','Des'];
-        const dd = String(Number(m[3])).padStart(2, '0');
-        const mm = months[Number(m[2]) - 1] || m[2];
-        return `${dd} ${mm} ${m[1]}`;
-      }
-      return s;
-    }
 
-    function formatJam(value){
-      if (!value) return '--';
-      return String(value);
-    }
+  // Jika angka dari Google Sheets
+  if (!isNaN(value)) {
+
+    let excelEpoch = new Date(1899, 11, 30);
+    let ms = value * 24 * 60 * 60 * 1000;
+    let date = new Date(excelEpoch.getTime() + ms);
+
+    return date.toLocaleDateString("id-ID");
+  }
+
+  // Jika sudah format normal
+  let d = new Date(value);
+  return d.toLocaleDateString("id-ID");
+}
+
+   function formatJam(value){
+
+  // Jika angka dari Google Sheets
+  if (!isNaN(value)) {
+
+    let excelEpoch = new Date(1899, 11, 30);
+    let ms = value * 24 * 60 * 60 * 1000;
+    let date = new Date(excelEpoch.getTime() + ms);
+
+    return date.toLocaleTimeString("id-ID");
+  }
+
+  let d = new Date(value);
+  return d.toLocaleTimeString("id-ID");
+}
 
     function statusClass(status){
       const s = String(status || '').toUpperCase();
